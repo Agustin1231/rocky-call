@@ -10,10 +10,16 @@ const STATES = {
   error:      { label: 'Error — intentá otra vez', dot: '#ff6b6b' },
 }
 
+const PW_KEY = 'rocky-call-pw'
+
 export default function App() {
   const [state, setState]   = useState('idle')
   const [error, setError]   = useState(null)
   const [elapsed, setElapsed] = useState(0)
+  const [password, setPassword] = useState(
+    () => localStorage.getItem(PW_KEY) || ''
+  )
+  const [pwInput, setPwInput] = useState('')
   const roomRef   = useRef(null)
   const audioRef  = useRef(null)
   const startedAt = useRef(null)
@@ -50,9 +56,17 @@ export default function App() {
     try {
       const resp = await fetch('/api/token', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          'x-call-password': password,
+        },
         body: JSON.stringify({ name: 'Agustin' }),
       })
+      if (resp.status === 401) {
+        localStorage.removeItem(PW_KEY)
+        setPassword('')
+        throw new Error('password incorrecto')
+      }
       if (!resp.ok) throw new Error(`token ${resp.status}`)
       const { token, url } = await resp.json()
 
@@ -98,8 +112,46 @@ export default function App() {
     }
   }, [isActive])
 
+  const submitPw = (e) => {
+    e.preventDefault()
+    if (!pwInput.trim()) return
+    localStorage.setItem(PW_KEY, pwInput.trim())
+    setPassword(pwInput.trim())
+    setPwInput('')
+  }
+
   const s = STATES[state] || STATES.idle
   const mmss = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`
+
+  if (!password) {
+    return (
+      <div className="page">
+        <header className="hdr">
+          <div className="brand">rocky · call</div>
+          <div className="net">lock</div>
+        </header>
+        <main className="main">
+          <div className="orb idle">
+            <div className="orb-core" />
+            <div className="orb-ring" />
+          </div>
+          <form className="pwform" onSubmit={submitPw}>
+            <input
+              type="password"
+              placeholder="Contraseña"
+              autoFocus
+              value={pwInput}
+              onChange={(e) => setPwInput(e.target.value)}
+            />
+            <button className="btn call" type="submit">Entrar</button>
+          </form>
+          <p className="hint">
+            Esta instancia está limitada. Pedí la contraseña a Agustin.
+          </p>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="page">

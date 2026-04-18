@@ -165,3 +165,24 @@ body {
   line-height: 1.5;
   margin: 10px 0 0;
 }
+
+.pwform {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  width: 100%;
+  max-width: 320px;
+}
+.pwform input {
+  flex: 1;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+  outline: none;
+}
+.pwform input:focus { border-color: var(--accent-2); }
+.pwform .btn.call { padding: 14px 20px; }

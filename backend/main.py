@@ -9,11 +9,12 @@ demand via LiveKit's job queue — no explicit dispatch from here is needed.
 """
 from __future__ import annotations
 
+import hmac
 import os
 import secrets
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from livekit import api
@@ -21,11 +22,12 @@ from pydantic import BaseModel, Field
 
 load_dotenv()
 
-LK_URL     = os.environ["LIVEKIT_URL"]
-LK_KEY     = os.environ["LIVEKIT_API_KEY"]
-LK_SECRET  = os.environ["LIVEKIT_API_SECRET"]
-ALLOW_ORIG = os.environ.get("ALLOW_ORIGIN", "*")
-STATIC_DIR = os.environ.get("STATIC_DIR", "/app/static")
+LK_URL       = os.environ["LIVEKIT_URL"]
+LK_KEY       = os.environ["LIVEKIT_API_KEY"]
+LK_SECRET    = os.environ["LIVEKIT_API_SECRET"]
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "")   # required to issue tokens
+ALLOW_ORIG   = os.environ.get("ALLOW_ORIGIN", "*")
+STATIC_DIR   = os.environ.get("STATIC_DIR", "/app/static")
 
 app = FastAPI(title="rocky-call backend", version="0.1")
 app.add_middleware(
@@ -52,9 +54,17 @@ async def health():
 
 
 @app.post("/api/token", response_model=TokenResponse)
-async def issue_token(req: TokenRequest):
+async def issue_token(
+    req: TokenRequest,
+    x_call_password: str | None = Header(default=None),
+):
     if not LK_KEY or not LK_SECRET:
         raise HTTPException(status_code=500, detail="LiveKit not configured")
+    if not APP_PASSWORD:
+        raise HTTPException(status_code=500, detail="APP_PASSWORD not configured")
+    # Constant-time compare to avoid timing side-channel on short strings
+    if not x_call_password or not hmac.compare_digest(x_call_password, APP_PASSWORD):
+        raise HTTPException(status_code=401, detail="wrong password")
 
     room = f"rocky-{secrets.token_hex(4)}"
     identity = f"{req.name}-{secrets.token_hex(3)}"
