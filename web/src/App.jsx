@@ -110,7 +110,7 @@ export default function App() {
       setError(String(e.message || e))
       setState('error')
     }
-  }, [isActive])
+  }, [password, isActive])
 
   const submitPw = (e) => {
     e.preventDefault()
